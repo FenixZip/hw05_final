@@ -1,9 +1,12 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import Post, Group, User, Follow
-from .forms import PostForm, CommentForm
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from .utils import get_page_context
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import cache_page
+
+from .forms import PostForm, CommentForm
+from .models import Group, Post, User, Follow
+from .utils import get_page_context
 
 
 @cache_page(20, key_prefix="index_page")
@@ -77,9 +80,7 @@ def post_edit(request, post_id: int):
         instance=post
     )
     if form.is_valid():
-        post = form.save(commit=False)
-        post.author = request.user
-        post.save()
+        form.save()
         return redirect('posts:post_detail', post_id=post_id)
     context = {
         'form': form,
@@ -114,10 +115,9 @@ def follow_index(request):
 @login_required
 def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
-    if (request.user != author
-            and not request.user.follower.filter(author=author).exists()):
-        Follow.objects.create(user=request.user, author=author)
-    return redirect('posts:profile', username=author.username)
+    if author != request.user:
+        Follow.objects.get_or_create(user=request.user, author=author)
+    return redirect('posts:profile', username=username)
 
 
 @login_required
